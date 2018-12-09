@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+require 'aws-sdk-s3'
+require 'slop'
+
+opts = Slop.parse do |o|
+  o.banner = "This command uploads a file, a folders contents, or a list of files to S3"
+  o.string '-p', '--path', 'Path to folder whose contents will be uploaded'
+  o.string '-f', '--file', 'Path to file to upload'
+  o.array '--list', 'list of files to upload'
+  o.string '-b', '--bucket', 'bucket to upload to'
+  o.string '-sf', '--sub', 'sub folder for the bucket'
+  o.boolean '-v', '--verbose', 'prints extra output for debugging'
+end
+
+s3 = Aws::S3::Resource.new
+
+puts "Uploading to #{opts[:bucket]}#{opts[:sub].nil? ? "" : "/" + opts[:sub]}" if opts.verbose?
+bucket = s3.bucket opts[:bucket]
+
+files = []
+if !opts[:path].nil? then
+  puts "Using provided path: #{opts[:path]}" if opts.verbose?
+  files = Dir[File.expand_path(opts[:path] + "/*")]
+  puts "Found these files to upload: #{files}" if opts.verbose?
+elsif !opts[:file].nil? then
+  puts "File: #{opts[:file]}"
+  files = [opts[:file]]
+  puts "Uploading this file: #{files[0]}" if opts.verbose?
+elsif !opts[:list].empty? then
+  puts "Using provided list" if opts.verbose?
+  files = [opts[:list]]
+  puts "Found these files to upload: #{files}" if opts.verbose?
+else
+  puts "No input provided for uploading"
+  return
+end
+
+puts "Bucket #{opts[:bucket]}" if opts.verbose?
+
+files.each do |file_path|
+
+  file_name = File.basename(file_path)
+  file_name = opts[:sub] + "/" + file_name unless opts[:sub].nil?
+  puts "Uploading as #{file_name}" if opts.verbose?
+
+  obj = bucket.object(file_name)
+
+  File.open(file_path, "r") do |file|
+    #upload to S3
+    obj.put(
+      {
+        body: file.read,
+        metadata:
+        {
+          host: `hostname`
+          } })
+  end
+
+end
