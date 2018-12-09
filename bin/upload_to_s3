@@ -39,7 +39,7 @@ puts "Bucket #{opts[:bucket]}" if opts.verbose?
 
 files.each do |file_path|
 
-  file_name = File.basename(file_path)
+  file_name = File.basename(file_path, ".*") + "-#{`hostname`}" + File.extname(file_path)
   file_name = opts[:sub] + "/" + file_name unless opts[:sub].nil?
   puts "Uploading as #{file_name}" if opts.verbose?
 
@@ -47,13 +47,7 @@ files.each do |file_path|
 
   File.open(file_path, "r") do |file|
     #upload to S3
-    obj.put(
-      {
-        body: file.read,
-        metadata:
-        {
-          host: `hostname`
-          } })
+    obj.put({ body: file.read })
   end
 
 end
